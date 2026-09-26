@@ -1,0 +1,848 @@
+/*
+ * Оформление альбома: бумага, корешок, перелистывание.
+ *
+ * Принципы, из которых выведены значения:
+ *  1. Это книга, а не интерфейс: тёплая бумага, засечный шрифт, минимум кнопок.
+ *  2. Страница читается и на телефоне: размер шрифта не уменьшается, меняется только формат —
+ *     разворот превращается в одну страницу.
+ *  3. Перелистывание — поворот настоящего листа вокруг корешка, а не слайд: так понятнее,
+ *     что перед тобой книга.
+ */
+
+:root {
+  --paper: #fbf6ec;
+  --paper-edge: #efe6d5;
+  --ink: #3a3128;
+  --ink-soft: #6b5f50;
+  --ink-faint: #9a8d7c;
+  --cover: #2f3f52;
+  --cover-deep: #22303f;
+  --gold: #c9a24a;
+  --page-width: min(46vw, 520px);
+  --page-height: min(78vh, 800px);
+  --turn: 0.7s;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(120% 90% at 50% 0%, #43372c 0%, #2a221b 55%, #1e1813 100%);
+  color: var(--ink);
+  font-family: Georgia, 'PT Serif', 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Верхняя полоса ────────────────────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  color: #f0e6d6;
+  background: rgba(20, 16, 12, 0.55);
+  border-bottom: 1px solid rgba(201, 162, 74, 0.25);
+}
+
+.topbar__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.topbar__mark {
+  color: var(--gold);
+}
+
+.topbar__tools {
+  display: flex;
+  gap: 8px;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 162, 74, 0.4);
+  background: rgba(255, 250, 240, 0.06);
+  color: #f3ead9;
+  font: inherit;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tool:hover {
+  background: rgba(255, 250, 240, 0.14);
+}
+
+.tool[aria-pressed='true'] {
+  background: rgba(201, 162, 74, 0.22);
+  border-color: var(--gold);
+}
+
+.tool__icon {
+  color: var(--gold);
+}
+
+/* ── Сцена с книгой ────────────────────────────────────────────────────────── */
+.stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 18px;
+}
+
+.book {
+  position: relative;
+  display: flex;
+  perspective: 2200px;
+  filter: drop-shadow(0 30px 45px rgba(0, 0, 0, 0.45));
+}
+
+.book__spread {
+  position: relative;
+  width: var(--page-width);
+  height: var(--page-height);
+  background: linear-gradient(180deg, var(--paper) 0%, #f6efe2 100%);
+  overflow: hidden;
+}
+
+.book__spread[data-side='left'] {
+  border-radius: 6px 2px 2px 6px;
+  box-shadow: inset -18px 0 26px -22px rgba(58, 49, 40, 0.55);
+}
+
+.book__spread[data-side='right'] {
+  border-radius: 2px 6px 6px 2px;
+  box-shadow: inset 18px 0 26px -22px rgba(58, 49, 40, 0.55);
+}
+
+/* На телефоне левая половина не показывается: разворот становится одной страницей. */
+.book--single .book__spread[data-side='left'] {
+  display: none;
+}
+
+.book--single .book__spread[data-side='right'] {
+  width: min(92vw, 560px);
+  height: min(76vh, 780px);
+  border-radius: 8px;
+}
+
+/* Корешок: тёмная полоса по центру разворота. */
+.book:not(.book--single)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 26px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    90deg,
+    rgba(58, 49, 40, 0) 0%,
+    rgba(58, 49, 40, 0.22) 45%,
+    rgba(58, 49, 40, 0.32) 50%,
+    rgba(58, 49, 40, 0.22) 55%,
+    rgba(58, 49, 40, 0) 100%
+  );
+  pointer-events: none;
+}
+
+/* ── Перелистываемый лист ──────────────────────────────────────────────────── */
+.leaf {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--page-width);
+  height: var(--page-height);
+  transform-style: preserve-3d;
+  transform-origin: left center;
+  transition: transform var(--turn) cubic-bezier(0.44, 0.05, 0.3, 1);
+  z-index: 5;
+}
+
+.book--single .leaf {
+  left: 0;
+  width: min(92vw, 560px);
+  height: min(76vh, 780px);
+}
+
+.leaf__face {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--paper) 0%, #f6efe2 100%);
+  overflow: hidden;
+  backface-visibility: hidden;
+  border-radius: 2px 6px 6px 2px;
+  box-shadow: inset 18px 0 26px -22px rgba(58, 49, 40, 0.5);
+}
+
+.leaf__face--back {
+  transform: rotateY(180deg);
+  border-radius: 6px 2px 2px 6px;
+  box-shadow: inset -18px 0 26px -22px rgba(58, 49, 40, 0.5);
+}
+
+.leaf--turning {
+  transform: rotateY(-180deg);
+}
+
+.leaf--back-turn {
+  transform: rotateY(-180deg);
+}
+
+.leaf--back-turn.leaf--turning {
+  transform: rotateY(0deg);
+}
+
+/* ── Страница ──────────────────────────────────────────────────────────────── */
+.page {
+  position: relative;
+  height: 100%;
+  padding: 28px 32px 58px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+}
+
+.page-number {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+}
+
+/*
+ * На бумажных страницах номер закреплён у нижнего края самого окна страницы: если содержимое
+ * длиннее (так бывает на телефоне), номер остаётся на виду и не оказывается поверх текста —
+ * под ним лежит полоса бумаги.
+ */
+.page:not(.page--cover):not(.page--back) .page-number {
+  position: sticky;
+  bottom: 0;
+  left: auto;
+  right: auto;
+  margin-top: auto;
+  padding: 8px 0 2px;
+  background: linear-gradient(180deg, rgba(251, 246, 236, 0) 0%, var(--paper) 45%);
+}
+
+.page__title {
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+.page__subtitle {
+  margin: 16px 0 7px;
+  font-size: 1.05rem;
+  font-weight: 400;
+  color: var(--ink-soft);
+  border-bottom: 1px solid rgba(58, 49, 40, 0.15);
+  padding-bottom: 6px;
+}
+
+.page__note {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+/* Обложка */
+.page--cover,
+.page--back {
+  padding: 0;
+  display: flex;
+}
+
+.cover,
+.back-cover {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 32px;
+  text-align: center;
+  color: #f6eddc;
+  background: linear-gradient(160deg, var(--cover) 0%, var(--cover-deep) 100%);
+  border-radius: inherit;
+}
+
+.cover__kicker {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.cover__title {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.cover__rule {
+  width: 90px;
+  height: 1px;
+  background: var(--gold);
+  opacity: 0.75;
+}
+
+.cover__note {
+  margin: 0;
+  font-size: 0.95rem;
+  color: rgba(246, 237, 220, 0.78);
+}
+
+/* Содержание */
+.contents {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contents li {
+  border-bottom: 1px dotted rgba(58, 49, 40, 0.25);
+}
+
+.contents a {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 12px 2px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.contents a:hover .contents__label {
+  color: #7a5a1e;
+}
+
+.contents__label {
+  font-size: 1.05rem;
+  transition: color 0.15s ease;
+}
+
+.contents__meta {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+/* Страница человека */
+.person__head {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.person__name {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 400;
+}
+
+.person__surname {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+}
+
+.person__maiden {
+  color: var(--ink-faint);
+  font-size: 0.95rem;
+}
+
+.person__meta {
+  margin: 8px 0 0;
+  color: var(--ink-faint);
+  font-size: 0.92rem;
+}
+
+.person__summary {
+  margin: 14px 0 0;
+  font-size: 0.95rem;
+  text-align: justify;
+}
+
+.portrait {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 6px 26px;
+  background: #fff;
+  border: 1px solid var(--paper-edge);
+  box-shadow: 0 6px 14px -10px rgba(58, 49, 40, 0.6);
+  transform: rotate(1.2deg);
+}
+
+.portrait svg {
+  display: block;
+  width: 96px;
+  height: 120px;
+}
+
+.portrait figcaption {
+  margin-top: 4px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.portrait--small svg {
+  width: 72px;
+  height: 90px;
+}
+
+/* Факты */
+.facts {
+  margin: 18px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  font-size: 0.92rem;
+}
+
+.facts dt {
+  color: var(--ink-faint);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+/* Вкусы */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(201, 162, 74, 0.14);
+  border: 1px solid rgba(201, 162, 74, 0.45);
+  font-size: 0.86rem;
+}
+
+.quote {
+  margin: 14px 0 0;
+  font-size: 0.95rem;
+  padding: 4px 0 4px 14px;
+  border-left: 2px solid var(--gold);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* Страница чисел: крупные значения, подпись под каждым */
+.numbers {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.numbers__item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dotted rgba(58, 49, 40, 0.25);
+}
+
+.numbers__value {
+  min-width: 84px;
+  font-size: 1.8rem;
+  color: #7a5a1e;
+  letter-spacing: 0.02em;
+}
+
+.numbers__label {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+
+/* Страница вкусов */
+.taste-card .chips li {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+.taste-card__head em {
+  font-size: 0.8rem;
+}
+
+.taste-grid {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  /* Две колонки: пять карточек в столбик не помещаются на страницу альбома. */
+  grid-template-columns: 1fr 1fr;
+}
+
+.taste-card {
+  padding: 8px 10px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fffdf8 0%, #f8f1e4 100%);
+}
+
+.taste-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.taste-card__initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 0.82rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--from), var(--to));
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.taste-card__head em {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  font-style: normal;
+}
+
+/* ── Кнопки по краям и нижняя панель ──────────────────────────────────────── */
+.edge {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #f2e8d7;
+  background: rgba(20, 16, 12, 0.45);
+  border: 1px solid rgba(201, 162, 74, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.edge:hover:not(:disabled) {
+  background: rgba(201, 162, 74, 0.3);
+}
+
+.edge:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.edge--prev {
+  left: 10px;
+}
+
+.edge--next {
+  right: 10px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: rgba(20, 16, 12, 0.55);
+  border-top: 1px solid rgba(201, 162, 74, 0.25);
+  color: #efe4d2;
+}
+
+.pager__btn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 162, 74, 0.45);
+  background: rgba(255, 250, 240, 0.08);
+  color: #f3ead9;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pager__btn:hover:not(:disabled) {
+  background: rgba(255, 250, 240, 0.16);
+}
+
+.pager__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pager__state {
+  flex: 1;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.pager__hint {
+  display: block;
+  color: rgba(239, 228, 210, 0.55);
+  font-size: 0.8rem;
+}
+
+/* ── Узкие экраны ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* На телефоне шапка узкая: заголовок в одну строку, кнопки — отдельной строкой,
+     иначе крайняя кнопка уезжает за экран. */
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .topbar__title {
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .topbar__tools {
+    width: 100%;
+  }
+
+  .tool {
+    flex: 1;
+    justify-content: center;
+    min-height: 38px;
+    font-size: 0.88rem;
+  }
+
+  .pager__state {
+    font-size: 0.85rem;
+  }
+
+  .pager__state > span:first-child {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 900px) {
+  :root {
+    --page-width: min(92vw, 560px);
+    /* Выше страница и мельче содержимое: на телефоне та же страница должна влезать целиком. */
+    --page-height: min(86vh, 860px);
+  }
+
+  .stage {
+    padding: 10px 8px 18px;
+    align-items: flex-start;
+    /* Страница выросла по содержимому — значит и сцена должна расти за ней, иначе содержимое
+       вылезает поверх нижних кнопок, и до «Дальше» не добраться. */
+    flex: none;
+  }
+
+  /* Панель кнопок идёт в потоке сразу под страницей: закреплённая версия накладывалась
+     на низ страницы и мешала нажимать «Дальше». */
+  .pager {
+    position: static;
+  }
+
+  /* На телефоне страница альбома — не фиксированного размера, а по содержимому: так текст
+     никогда не прячется под краем, а листать вниз можно пальцем. */
+  .book--single .book__spread[data-side='right'] {
+    height: auto;
+    min-height: min(72vh, 640px);
+  }
+
+  .page {
+    height: auto;
+    min-height: min(72vh, 640px);
+    overflow: visible;
+  }
+
+  .page:not(.page--cover):not(.page--back) .page-number {
+    position: static;
+    margin-top: 16px;
+    padding-top: 8px;
+    background: none;
+    border-top: 1px solid rgba(58, 49, 40, 0.12);
+  }
+
+  /* Поворот листа на длинной странице выглядит сломанным: на телефоне листаем переходом. */
+  .leaf {
+    display: none;
+  }
+
+  .edge {
+    display: none;
+  }
+
+  .page {
+    padding: 18px 16px 44px;
+  }
+
+  .page__title {
+    font-size: 1.35rem;
+  }
+
+  .person__name {
+    font-size: 1.25rem;
+  }
+
+  .person__summary {
+    font-size: 0.93rem;
+    margin-top: 10px;
+  }
+
+  .facts {
+    font-size: 0.86rem;
+    margin-top: 12px;
+    gap: 3px 10px;
+  }
+
+  .chips li {
+    padding: 3px 9px;
+    font-size: 0.8rem;
+  }
+
+  .quote {
+    font-size: 0.88rem;
+    margin-top: 10px;
+  }
+
+  .taste-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .numbers__value {
+    font-size: 1.5rem;
+    min-width: 68px;
+  }
+
+  .numbers {
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .taste-card {
+    padding: 8px 10px;
+  }
+
+  .page--cover,
+  .page--back {
+    padding: 0;
+  }
+
+  .cover__title {
+    font-size: 1.9rem;
+  }
+
+  .person__head {
+    gap: 12px;
+  }
+
+  .portrait svg {
+    width: 70px;
+    height: 88px;
+  }
+
+  .edge {
+    width: 40px;
+    height: 64px;
+    font-size: 1.7rem;
+  }
+
+  .pager__hint {
+    display: none;
+  }
+
+  .pager__btn {
+    padding: 0 14px;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-enter {
+  animation: page-enter 0.28s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaf {
+    transition-duration: 0.01ms;
+  }
+}
+
+@media print {
+  .topbar,
+  .pager,
+  .edge {
+    display: none;
+  }
+
+  .book {
+    filter: none;
+  }
+}

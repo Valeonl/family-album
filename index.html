@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>Семейный альбом — Род Ивановых</title>
+    <meta
+      name="description"
+      content="Электронный семейный альбом: страницы с людьми рода, их фотографиями, фактами и вкусами. Листается как книга — с телефона и с компьютера."
+    />
+    <meta property="og:title" content="Семейный альбом — Род Ивановых" />
+    <meta property="og:description" content="Электронный альбом рода, который листается как книга" />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__title">
+        <span class="topbar__mark" aria-hidden="true">✦</span>
+        Семейный альбом
+      </div>
+      <div class="topbar__tools">
+        <button type="button" class="tool" id="view-toggle" aria-pressed="false" title="Разворот или одна страница">
+          <span class="tool__icon" aria-hidden="true">▭▭</span>
+          <span class="tool__text">Разворот</span>
+        </button>
+        <a class="tool" href="#page-1" id="to-start" title="В начало альбома">
+          <span class="tool__icon" aria-hidden="true">⌂</span>
+          <span class="tool__text">Обложка</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="book" id="book" aria-live="polite">
+        <!-- Страницы рисует album.js из данных: разворот — это два соседних листа -->
+        <div class="book__spread" id="spread-left" data-side="left"></div>
+        <div class="book__spread" id="spread-right" data-side="right"></div>
+        <div class="leaf" id="leaf" hidden>
+          <div class="leaf__face leaf__face--front" id="leaf-front"></div>
+          <div class="leaf__face leaf__face--back" id="leaf-back"></div>
+        </div>
+      </div>
+
+      <button type="button" class="edge edge--prev" id="prev" aria-label="Предыдущая страница">
+        <span aria-hidden="true">‹</span>
+      </button>
+      <button type="button" class="edge edge--next" id="next" aria-label="Следующая страница">
+        <span aria-hidden="true">›</span>
+      </button>
+    </main>
+
+    <footer class="pager">
+      <button type="button" class="pager__btn" id="prev-bottom">
+        <span aria-hidden="true">←</span> Назад
+      </button>
+      <div class="pager__state">
+        <span id="page-label">Обложка</span>
+        <span class="pager__hint">листайте стрелками, свайпом или клавишами ← →</span>
+      </div>
+      <button type="button" class="pager__btn" id="next-bottom">
+        Дальше <span aria-hidden="true">→</span>
+      </button>
+    </footer>
+
+    <script src="./album.js"></script>
+  </body>
+</html>
